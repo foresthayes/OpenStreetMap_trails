@@ -1,0 +1,99 @@
+---
+title: "Extracting trail and road data from OpenStreetMap"
+author: "Forest P Hayes"
+date: "December, 16, 2020"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, echo = F}
+library(magrittr)
+```
+
+## 1. Define extent
+#### Create a bounding box for the study area
+```{r}
+glac_bbox <- 
+  # approximate bounding box for Glacier National Park
+  sf::st_bbox(c(xmin = -114.47552, ymin = 48.23369, xmax = -113.24198, ymax = 49.0000))
+
+```
+
+
+## 2. Download data
+
+#### Get trail data
+Note: this includes the classifications of 'path' (multi-use), 'footway' (foot traffic only), and "steps" (i.e. stairs)
+```{r}
+trails <- 
+  osmdata::opq(bbox = glac_bbox) %>% 
+  osmdata::add_osm_feature(key = 'highway', value = c("path", "footway", "steps")) %>% 
+  osmdata::osmdata_sf()
+
+```
+
+
+#### Get trailhead data
+Note: this is specifically for _named_ trailheads. There are numerous parking areas that are at the start of trails that do now show up as trailheads.
+```{r}
+trailhead <- 
+  osmdata::opq(bbox = glac_bbox) %>% 
+  osmdata::add_osm_feature(key = 'highway', value = c("trailhead")) %>% 
+  osmdata::osmdata_sf()
+
+```
+
+
+#### Get parking area data
+This seems like it could be useful to augment trailhead data. That said, parking areas include many pull outs along roads that are deffinitly _not_ trail access locations. 
+
+
+```{r}
+# parking <-
+#   osmdata::opq(bbox = glac_bbox) %>%
+#   osmdata::add_osm_feature(key = 'amenity', value = c("parking")) %>%
+#   osmdata::osmdata_sf()
+
+```
+
+
+
+#### Get data for all road types
+Note the number of different road classifications that OpenStreetMap uses. All common road types are included below.
+```{r}
+all_roads <-
+    osmdata::opq(bbox = glac_bbox) %>%
+    osmdata::add_osm_feature(
+      key = 'highway', 
+      value = c("motorway", "trunk", "primary", "secondary", "tertiary", 
+                "unclassified", "residential", "motorway_link", "trunk_link", 
+                "primary_link", "secondary_link", "tertiary_link", 
+                "living_street", "service")
+    ) %>%
+    osmdata::osmdata_sf()
+
+```
+
+## 3. Map data
+
+```{r, out.width="100%"}
+mapview::mapview(
+  list(
+    Roads = all_roads$osm_lines,
+    Trail = trails$osm_lines,
+    Trailhead = trailhead$osm_points
+  ),
+  color = list("saddlebrown", "coral", "darkblue"),
+  col.regions = "blue"
+)@map
+
+```
+
